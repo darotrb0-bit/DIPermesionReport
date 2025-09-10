@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ទិន្នន័យច្បាប់ ឧស្សាហកម្មឌីជីថល</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kantumruy Pro', sans-serif;
+            background-color: #f0f2f5;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .tab-active {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: 700;
+        }
+
+        #filterPanel {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(100%);
+        }
+
+        #filterPanel.open {
+            transform: translateX(0);
+        }
+        
+        #overlay, #modal-container {
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        #modal-content {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+    <div class="container mx-auto p-4 max-w-4xl">
+        <header class="text-center mb-6">
+            <img src="https://i.postimg.cc/tT0XCH38/di3-copy.png" alt="Logo ក្រុមហ៊ុន" class="mx-auto h-16 w-auto mb-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-blue-600">ប្រព័ន្ធពិនិត្យរបាយការណ៍ច្បាប់</h1>
+            <p class="text-gray-500 mt-1">ទិន្នន័យច្បាប់ ឧស្សាហកម្មឌីជីថល</p>
+        </header>
+
+        <!-- API Key Input Section -->
+        <div id="apiKeySection" class="bg-white p-4 rounded-lg shadow-md mb-6">
+            <h2 class="font-bold text-lg mb-2">សូមបញ្ចូល Google API Key</h2>
+            <p class="text-sm text-gray-600 mb-3">ដើម្បីភ្ជាប់ទៅកាន់ Google Sheet អ្នកត្រូវបង្កើត API Key ពី <a href="https://console.cloud.google.com/" target="_blank" class="text-blue-500 hover:underline">Google Cloud Console</a> ហើយត្រូវប្រាកដថា Google Sheets API ត្រូវបានបើកដំណើរការ។</p>
+            <div class="flex flex-col sm:flex-row gap-2">
+                 <input type="password" id="apiKeyInput" placeholder="បិទភ្ជាប់ API Key របស់អ្នកនៅទីនេះ" class="flex-grow p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                 <button id="saveApiKeyButton" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">រក្សាទុក និងចាប់ផ្តើម</button>
+            </div>
+             <p class="text-xs text-gray-500 mt-2">API Key នឹងត្រូវបានរក្សាទុកក្នុង Browser របស់អ្នក។ <a href="https://youtu.be/AF_zA-pC5z4?si=0w6W5E3Zl2hF_I0h" target="_blank" class="text-blue-500 hover:underline">របៀបបង្កើត API Key</a></p>
+        </div>
+
+        <main id="mainContent" class="hidden">
+            <!-- Tabs -->
+            <div class="mb-4 border-b border-gray-200">
+                <nav class="flex -mb-px space-x-4" aria-label="Tabs">
+                    <button id="tab-info" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300 tab-active">
+                        ច្បាប់ចេញក្រៅ
+                    </button>
+                    <button id="tab-leave" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">
+                        ច្បាប់ឈប់សម្រាក
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Main Control Bar -->
+            <div class="bg-white p-3 rounded-lg shadow-md mb-6 flex justify-between items-center">
+                <div id="summaryText" class="text-gray-600 text-sm">សូមជ្រើសរើសប្រភេទច្បាប់...</div>
+                <button id="filterToggleButton" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-filter" viewBox="0 0 16 16"><path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/></svg>
+                    <span>តម្រង</span>
+                </button>
+            </div>
+
+            <!-- Summary by Employee -->
+            <div id="monthlySummaryContainer" class="mb-6"></div>
+            
+            <!-- Loading indicator -->
+            <div id="loader" class="text-center p-10 hidden">
+                 <div class="loader mx-auto"></div>
+                 <p class="mt-4 text-gray-600">កំពុងទាញទិន្នន័យ...</p>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+                <strong class="font-bold">មានបញ្ហា!</strong>
+                <span class="block sm:inline" id="errorText"></span>
+            </div>
+
+            <!-- Data Display -->
+            <div id="data-container" class="space-y-4"></div>
+
+            <!-- Pagination Controls -->
+            <div id="pagination-container" class="mt-6 flex justify-center items-center"></div>
+        </main>
+        
+        <footer class="text-center mt-8 py-4 text-sm text-gray-500 border-t">
+            <a href="https://t.me/MMKDaro" target="_blank" class="text-blue-600 hover:underline">MMKDARO</a> || ក្រុមការងារ IT SUPPORT
+        </footer>
+    </div>
+
+    <!-- Filter Panel -->
+    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+    <div id="filterPanel" class="fixed top-0 right-0 h-full w-80 max-w-full bg-white shadow-lg p-6 z-50">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold">តម្រងទិន្នន័យ</h2>
+            <button id="closeFilterButton" class="text-gray-500 hover:text-gray-800 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="space-y-4">
+            <input type="text" id="searchInput" placeholder="ស្វែងរកតាមអត្តលេខ ឬឈ្មោះ..." class="p-2 border rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <select id="yearFilter" class="p-2 border rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+            <select id="monthFilter" class="p-2 border rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+        </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden items-center justify-center p-4">
+        <div id="modal-content" class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-full overflow-y-auto p-6 relative">
+             <!-- Modal content will be injected by JS -->
+        </div>
+    </div>
+
+
+    <script>
+        // --- CONFIGURATION ---
+        const MAIN_SHEET_ID = '1sfpHSLhcojV8QyFjO3x5PPgfPLhaNckwRF0rOv9DDIk';
+        const PROFILE_SHEET_ID = '1_Kgl8UQXRsVATt_BOHYQjVWYKkRIBA12R-qnsBoSUzc';
+        let GOOGLE_API_KEY = ''; 
+
+        const RANGES = {
+            info: "'INFO'!A8:O",
+            leave: "'ច្បាប់សម្រាក'!A2:H",
+            profiles: "'បញ្ជឺឈ្មោះរួម'!E9:S" 
+        };
+
+        // --- DOM ELEMENTS ---
+        const apiKeySection = document.getElementById('apiKeySection');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const saveApiKeyButton = document.getElementById('saveApiKeyButton');
+        const mainContent = document.getElementById('mainContent');
+        const loader = document.getElementById('loader');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const dataContainer = document.getElementById('data-container');
+        const searchInput = document.getElementById('searchInput');
+        const summaryText = document.getElementById('summaryText');
+        const tabInfo = document.getElementById('tab-info');
+        const tabLeave = document.getElementById('tab-leave');
+        const filterToggleButton = document.getElementById('filterToggleButton');
+        const closeFilterButton = document.getElementById('closeFilterButton');
+        const filterPanel = document.getElementById('filterPanel');
+        const overlay = document.getElementById('overlay');
+        const monthFilter = document.getElementById('monthFilter');
+        const yearFilter = document.getElementById('yearFilter');
+        const monthlySummaryContainer = document.getElementById('monthlySummaryContainer');
+        const modalContainer = document.getElementById('modal-container');
+        const modalContent = document.getElementById('modal-content');
+
+
+        // --- STATE ---
+        let allData = { info: [], leave: [] };
+        let profileData = {};
+        let currentTab = 'info';
+        let currentPage = 1;
+        const cardsPerPage = 4;
+
+
+        // --- UTILITY FUNCTIONS ---
+        const toKhmerNumber = (num) => {
+            if (num === null || num === undefined || num === '') return '';
+            const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
+            return String(num).replace(/[0-9]/g, (digit) => khmerDigits[parseInt(digit)]);
+        };
+
+        const parseDateForSort = (dateStr) => {
+            if (!dateStr || typeof dateStr !== 'string') return new Date(0);
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                // DD/MM/YYYY -> YYYY-MM-DD
+                return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            }
+            const parsed = new Date(dateStr);
+            return isNaN(parsed) ? new Date(0) : parsed;
+        };
+        
+        // --- API & DATA HANDLING ---
+        async function fetchSheetData(spreadsheetId, range, valueRenderOption = 'FORMATTED_VALUE') {
+            if (!GOOGLE_API_KEY) {
+                showError("សូមបញ្ចូល API Key ជាមុនសិន។");
+                return null;
+            }
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueRenderOption=${valueRenderOption}&key=${GOOGLE_API_KEY}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    const message = errorData.error?.message || `HTTP error! status: ${response.status}`;
+                    throw new Error(message);
+                }
+                const data = await response.json();
+                return data.values || [];
+            } catch (error) {
+                console.error('Fetch error:', error);
+                showError(`មិនអាចទាញទិន្នន័យបានទេ: ${error.message}`);
+                return null;
+            }
+        }
+        
+        function parseInfoData(rows) {
+            return rows.map(row => ({
+                id: String(row[3] || ''), name: row[4] || '', gender: row[5] || '',
+                class: row[7] || '', dateOut: row[0] || '', timeOut: row[12] || '',
+                dateIn: row[14] || '', timeIn: row[13] || '', reason: row[9] || '',
+                duration: row[10] || '',
+            })).filter(item => item.id || item.name)
+               .sort((a, b) => parseDateForSort(b.dateOut) - parseDateForSort(a.dateOut));
+        }
+
+        function parseLeaveData(rows) {
+            return rows.map(row => ({
+                id: String(row[1] || ''), name: row[2] || '', gender: row[3] || '',
+                class: row[5] || '', date: row[0] || '', reason: row[6] || '',
+                duration: row[7] || '',
+            })).filter(item => item.id || item.name)
+               .sort((a, b) => parseDateForSort(b.date) - parseDateForSort(a.date));
+        }
+
+        function parseProfileData(rows) {
+            const profileMap = {};
+            const imageUrlRegex = /=IMAGE\("([^"]+)"/; 
+
+            rows.forEach(row => {
+                if (row && (row[0] !== null && row[0] !== undefined && row[0] !== '')) {
+                    const id = String(row[0]); 
+                    
+                    let photoUrl = row[11] || '';
+                    const match = photoUrl.match(imageUrlRegex);
+                    if (match && match[1]) {
+                        photoUrl = match[1]; 
+                    }
+
+                    profileMap[id.trim()] = {
+                        photo: photoUrl,
+                        department: row[14] || ''
+                    };
+                }
+            });
+            return profileMap;
+        }
+
+        // --- RENDERING ---
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.classList.remove('hidden');
+            loader.classList.add('hidden');
+        }
+
+        function hideError() { errorMessage.classList.add('hidden'); }
+        
+        function render() {
+            hideError();
+            dataContainer.innerHTML = '';
+            const dataToRender = allData[currentTab];
+            
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedYear = yearFilter.value;
+            const selectedMonth = monthFilter.value;
+
+            const filteredData = dataToRender.filter(item => {
+                const searchMatch = (item.id.toLowerCase().includes(searchTerm) || item.name.toLowerCase().includes(searchTerm));
+                
+                const itemDateStr = item.dateOut || item.date;
+                const itemDate = parseDateForSort(itemDateStr);
+                const dateMatch = (itemDate.getFullYear() == selectedYear && (itemDate.getMonth() + 1) == selectedMonth);
+
+                return searchMatch && dateMatch;
+            });
+
+            // Pagination logic
+            const startIndex = (currentPage - 1) * cardsPerPage;
+            const endIndex = startIndex + cardsPerPage;
+            const paginatedData = filteredData.slice(startIndex, endIndex);
+            
+            summaryText.textContent = `បង្ហាញ ${toKhmerNumber(paginatedData.length)} នៃ ${toKhmerNumber(filteredData.length)} លទ្ធផល`;
+
+            if (filteredData.length === 0) {
+                dataContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow-md"><p class="text-gray-500">រកមិនឃើញទិន្នន័យសម្រាប់ខែនេះទេ។</p></div>`;
+            } else {
+                paginatedData.forEach(item => {
+                    const trimmedId = item.id.trim();
+                    const profile = profileData[trimmedId] || { photo: '', department: '' };
+                    const placeholderImg = `https://placehold.co/60x60/e2e8f0/64748b?text=${(item.name || '?').charAt(0)}`;
+                    const card = document.createElement('div');
+                    card.className = 'card bg-white p-4 rounded-lg shadow-md flex items-start gap-4 cursor-pointer transition-all duration-200';
+                    card.onclick = () => showModal(item, profile);
+
+                    let contentHTML = '';
+                    if (currentTab === 'info') {
+                        contentHTML = `
+                            <img src="${profile.photo || placeholderImg}" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-14 h-14 rounded-full object-cover border-2 border-blue-200 flex-shrink-0">
+                            <div class="flex-grow">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="font-bold text-lg text-blue-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id || 'N/A')})</h3>
+                                        <p class="text-sm text-gray-500">${profile.department || item.class || 'គ្មានផ្នែក'}</p>
+                                    </div>
+                                    <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${toKhmerNumber(item.duration || '')}</span>
+                                </div>
+                                <div class="mt-3 border-t pt-2">
+                                    <p class="text-gray-700 mb-2 truncate"><strong>មូលហេតុ៖</strong> ${item.reason || 'គ្មាន'}</p>
+                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                        <p><strong>ចេញ៖</strong> ${toKhmerNumber(item.dateOut)} ${toKhmerNumber(item.timeOut || '')}</p>
+                                        <p><strong>ចូល៖</strong> ${toKhmerNumber(item.dateIn)} ${toKhmerNumber(item.timeIn || '')}</p>
+                                    </div>
+                                </div>
+                            </div>`;
+                    } else { // 'leave' tab
+                        contentHTML = `
+                            <img src="${profile.photo || placeholderImg}" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-14 h-14 rounded-full object-cover border-2 border-green-200 flex-shrink-0">
+                             <div class="flex-grow">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="font-bold text-lg text-green-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id || 'N/A')})</h3>
+                                        <p class="text-sm text-gray-500">${profile.department || item.class || 'គ្មានផ្នែក'}</p>
+                                    </div>
+                                    <span class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">${toKhmerNumber(item.duration || '')}</span>
+                                </div>
+                                <div class="mt-3 border-t pt-2">
+                                    <p class="text-gray-700 mb-2 truncate"><strong>មូលហេតុ៖</strong> ${item.reason || 'គ្មាន'}</p>
+                                    <p class="text-sm"><strong>កាលបរិច្ឆេទ៖</strong> ${toKhmerNumber(item.date)}</p>
+                                </div>
+                            </div>`;
+                    }
+                    card.innerHTML = contentHTML;
+                    dataContainer.appendChild(card);
+                });
+            }
+            calculateAndDisplaySummary(filteredData);
+            renderPagination(filteredData.length);
+        }
+        
+        function renderPagination(totalItems) {
+            const paginationContainer = document.getElementById('pagination-container');
+            paginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(totalItems / cardsPerPage);
+
+            if (totalPages <= 1) return;
+
+            let paginationHTML = '';
+
+            // Previous Button
+            paginationHTML += `<button class="px-3 py-1 rounded-md text-sm ${currentPage === 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'}" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>មុន</button>`;
+
+            // Page numbers
+            paginationHTML += `<span class="text-sm text-gray-600">ទំព័រ ${toKhmerNumber(currentPage)} / ${toKhmerNumber(totalPages)}</span>`;
+
+            // Next Button
+            paginationHTML += `<button class="px-3 py-1 rounded-md text-sm ${currentPage === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'}" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>បន្ទាប់</button>`;
+
+            paginationContainer.innerHTML = `<div class="flex items-center gap-2">${paginationHTML}</div>`;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            render();
+        }
+
+        function calculateAndDisplaySummary(data) {
+            monthlySummaryContainer.innerHTML = '';
+            if (currentTab !== 'leave' || data.length === 0) return;
+
+            const summary = data.reduce((acc, item) => {
+                if (!acc[item.id]) {
+                    acc[item.id] = { count: 0, days: 0, name: item.name, id: item.id };
+                }
+                acc[item.id].count++;
+                const durationStr = item.duration || '';
+                if (durationStr.includes('ព្រឹក') || durationStr.includes('រសៀល') || durationStr.includes('យប់')) {
+                    acc[item.id].days += 0.5;
+                } else {
+                    const days = parseFloat(durationStr);
+                    acc[item.id].days += isNaN(days) ? 1 : days; // Assume 1 day if not specified
+                }
+                return acc;
+            }, {});
+
+            const summaryArray = Object.values(summary).sort((a,b) => b.days - a.days);
+
+            const summaryButton = document.createElement('div');
+            summaryButton.className = 'text-center';
+            summaryButton.innerHTML = `
+                <button id="showSummaryButton" class="bg-green-600 text-white px-5 py-2 rounded-md hover:bg-green-700 transition w-full sm:w-auto">
+                    ទិន្នន័យសរុបការឈប់សម្រាកប្រចាំខែ
+                </button>
+            `;
+            monthlySummaryContainer.appendChild(summaryButton);
+            document.getElementById('showSummaryButton').onclick = () => showSummaryModal(summaryArray);
+        }
+
+        // --- UI & FILTERS ---
+        function toggleFilterPanel() {
+            filterPanel.classList.toggle('open');
+            overlay.classList.toggle('hidden', !filterPanel.classList.contains('open'));
+        }
+
+        function populateDateFilters() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+
+            // Populate Years
+            yearFilter.innerHTML = '';
+            for (let y = currentYear + 1; y >= 2020; y--) {
+                const option = document.createElement('option');
+                option.value = y;
+                option.textContent = `ឆ្នាំ ${toKhmerNumber(y)}`;
+                yearFilter.appendChild(option);
+            }
+            yearFilter.value = currentYear;
+            
+            // Populate Months
+            monthFilter.innerHTML = '';
+            const khmerMonths = ["មករា", "កុម្ភៈ", "មីនា", "មេសា", "ឧសភា", "មិថុនា", "កក្កដា", "សីហា", "កញ្ញា", "តុលា", "វិច្ឆិកា", "ធ្នូ"];
+            for (let m = 1; m <= 12; m++) {
+                const option = document.createElement('option');
+                option.value = m;
+                option.textContent = `ខែ ${khmerMonths[m-1]}`;
+                monthFilter.appendChild(option);
+            }
+            monthFilter.value = currentMonth;
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            tabInfo.classList.toggle('tab-active', tabName === 'info');
+            tabLeave.classList.toggle('tab-active', tabName === 'leave');
+            monthlySummaryContainer.innerHTML = ''; // Clear summary on tab switch
+            currentPage = 1; // Reset page on tab switch
+            render();
+        }
+        
+        // --- Modal ---
+        function showSummaryModal(summaryArray) {
+            let modalHTML = `
+                <button onclick="hideModal()" class="absolute top-2 right-3 text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
+                <div class="pt-4">
+                     <h2 class="font-bold text-xl mb-4 text-center">សរុបការឈប់សម្រាកប្រចាំខែ</h2>
+                     <div class="max-h-[70vh] overflow-y-auto">
+                        <table class="w-full text-sm text-left text-gray-600">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th scope="col" class="px-4 py-2">បុគ្គលិក</th>
+                                    <th scope="col" class="px-4 py-2 text-center">ចំនួនដង</th>
+                                    <th scope="col" class="px-4 py-2 text-center">ចំនួនថ្ងៃ</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+            
+            summaryArray.forEach(emp => {
+                 modalHTML += `
+                    <tr class="bg-white border-b hover:bg-gray-50">
+                        <td class="px-4 py-2 font-medium text-gray-900">${emp.name} (${toKhmerNumber(emp.id)})</td>
+                        <td class="px-4 py-2 text-center">${toKhmerNumber(emp.count)}</td>
+                        <td class="px-4 py-2 text-center font-bold">${toKhmerNumber(emp.days)}</td>
+                    </tr>`;
+            });
+            modalHTML += '</tbody></table></div></div>';
+            
+            modalContent.innerHTML = modalHTML;
+            modalContainer.classList.remove('hidden');
+            modalContainer.classList.add('flex');
+        }
+
+        function showModal(item, profile) {
+            const personId = item.id;
+            const dataToRender = allData[currentTab];
+            const selectedYear = yearFilter.value;
+            const selectedMonth = monthFilter.value;
+
+            const allRecordsForPersonThisMonth = dataToRender.filter(record => {
+                if (record.id !== personId) return false;
+                const itemDateStr = record.dateOut || record.date;
+                const itemDate = parseDateForSort(itemDateStr);
+                return (itemDate.getFullYear() == selectedYear && (itemDate.getMonth() + 1) == selectedMonth);
+            });
+
+            let totalCount = allRecordsForPersonThisMonth.length;
+            let totalDays = 0;
+            allRecordsForPersonThisMonth.forEach(record => {
+                const durationStr = record.duration || '';
+                if (durationStr.includes('ព្រឹក') || durationStr.includes('រសៀល') || durationStr.includes('យប់')) {
+                    totalDays += 0.5;
+                } else {
+                    const days = parseFloat(durationStr);
+                    totalDays += isNaN(days) ? 1 : days;
+                }
+            });
+
+            const placeholderImg = `https://placehold.co/80x80/e2e8f0/64748b?text=${(item.name || '?').charAt(0)}`;
+            let modalHTML = `
+                <button onclick="hideModal()" class="absolute top-2 right-3 text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
+                <div class="text-center pt-4">
+                     <img src="${profile.photo || placeholderImg}" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-20 h-20 rounded-full object-cover border-4 border-gray-200 mx-auto mb-3">
+                     <h2 class="text-xl font-bold">${item.name} (${toKhmerNumber(item.id)})</h2>
+                     <p class="text-gray-500">${profile.department || item.class}</p>
+                </div>
+                
+                <div class="mt-4 bg-gray-100 p-2 rounded-lg text-center">
+                    <p class="font-bold">សរុបក្នុងខែនេះ: <span class="text-blue-600">${toKhmerNumber(totalCount)} ដង</span> (ស្មើនឹង <span class="text-blue-600">${toKhmerNumber(totalDays)} ថ្ងៃ</span>)</p>
+                </div>
+
+                <div class="mt-4 border-t pt-2">
+                    <strong class="block mb-2">ប្រវត្តិសុំច្បាប់ក្នុងខែនេះ:</strong>
+                    <div class="max-h-48 overflow-y-auto space-y-2 pr-2">`;
+            
+            allRecordsForPersonThisMonth.forEach(record => {
+                if (currentTab === 'info') {
+                    modalHTML += `
+                        <div class="bg-gray-50 p-2 rounded-md text-sm">
+                            <p><strong>${toKhmerNumber(record.dateOut)}:</strong> ${toKhmerNumber(record.timeOut)} <strong>&rarr;</strong> ${toKhmerNumber(record.timeIn)}</p>
+                            <p class="text-xs text-gray-600 truncate">មូលហេតុ: ${record.reason || 'N/A'}</p>
+                        </div>
+                    `;
+                } else { // leave
+                    modalHTML += `
+                        <div class="bg-gray-50 p-2 rounded-md text-sm">
+                            <p><strong>${toKhmerNumber(record.date)}:</strong> ${record.duration}</p>
+                            <p class="text-xs text-gray-600 truncate">មូលហេតុ: ${record.reason || 'N/A'}</p>
+                        </div>
+                    `;
+                }
+            });
+
+            modalHTML += `</div></div>`;
+            
+            modalContent.innerHTML = modalHTML;
+            modalContainer.classList.remove('hidden');
+            modalContainer.classList.add('flex');
+        }
+
+        function hideModal() {
+            modalContainer.classList.add('hidden');
+            modalContainer.classList.remove('flex');
+        }
+
+        async function init() {
+            loader.classList.remove('hidden');
+            hideError();
+            dataContainer.innerHTML = '';
+
+            const [infoRows, leaveRows, profileRows] = await Promise.all([
+                fetchSheetData(MAIN_SHEET_ID, RANGES.info),
+                fetchSheetData(MAIN_SHEET_ID, RANGES.leave),
+                fetchSheetData(PROFILE_SHEET_ID, RANGES.profiles, 'FORMULA')
+            ]);
+
+            if (profileRows) profileData = parseProfileData(profileRows);
+            if (infoRows) allData.info = parseInfoData(infoRows);
+            if (leaveRows) allData.leave = parseLeaveData(leaveRows);
+            
+            loader.classList.add('hidden');
+            
+            if(infoRows || leaveRows){
+                switchTab('info');
+            }
+        }
+        
+        // --- API Key Handling ---
+        saveApiKeyButton.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('googleApiKey', key);
+                GOOGLE_API_KEY = key;
+                apiKeySection.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                init();
+            } else {
+                alert('សូមបញ្ចូល API Key ដែលត្រឹមត្រូវ');
+            }
+        });
+
+        function checkApiKey() {
+            populateDateFilters();
+            const savedKey = localStorage.getItem('googleApiKey');
+            if (savedKey) {
+                GOOGLE_API_KEY = savedKey;
+                apiKeySection.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                init();
+            } else {
+                apiKeySection.classList.remove('hidden');
+                mainContent.classList.add('hidden');
+            }
+        }
+
+        // --- Event Listeners ---
+        tabInfo.addEventListener('click', () => switchTab('info'));
+        tabLeave.addEventListener('click', () => switchTab('leave'));
+        [searchInput, monthFilter, yearFilter].forEach(el => el.addEventListener('input', () => {
+             currentPage = 1;
+             render();
+        }));
+        filterToggleButton.addEventListener('click', toggleFilterPanel);
+        closeFilterButton.addEventListener('click', toggleFilterPanel);
+        overlay.addEventListener('click', () => {
+            if(filterPanel.classList.contains('open')) {
+                toggleFilterPanel();
+            }
+        });
+        modalContainer.addEventListener('click', (e) => {
+            if (e.target === modalContainer) hideModal();
+        });
+
+
+        // --- Start the App ---
+        document.addEventListener('DOMContentLoaded', checkApiKey);
+    </script>
+</body>
+</html>
+
