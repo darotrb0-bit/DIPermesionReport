@@ -43,6 +43,8 @@
         
         #overlay, #modal-container {
             transition: opacity 0.3s ease-in-out;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
         }
 
         .card:hover {
@@ -91,6 +93,9 @@
                     <button id="tab-leave" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">
                         ច្បាប់ឈប់សម្រាក
                     </button>
+                     <button id="tab-combined" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300">
+                        ច្បាប់រួម
+                    </button>
                 </nav>
             </div>
 
@@ -98,6 +103,17 @@
             <div class="bg-white p-2 sm:p-3 rounded-lg shadow-md mb-6 flex justify-between items-center">
                 <div id="summaryText" class="text-gray-600 text-sm"></div>
                 <div class="flex items-center gap-2">
+                    <button id="notReturnedButton" title="អ្នកមិនទាន់ចូលមកវិញ" class="hidden text-gray-500 hover:text-orange-600 p-2 rounded-full hover:bg-gray-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-person-exclamation" viewBox="0 0 16 16">
+                            <path d="M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/>
+                            <path d="M4.5 8.246c1.22-.524 2.688-1.246 3.5-1.492V8.5h-1v1h1v1.5a.5.5 0 0 1-1 0V11h-1v1h1v1.5a.5.5 0 0 1-1 0V13h-1v1h1v1h2v-1h1v-1h-1v-1.5a.5.5 0 0 1 1 0V11h1v-1h-1V8.5h1v-1h-1V6c.61.278 2.27.952 3.5 1.5a.5.5 0 0 1 .491.595c-.126.3-.39.54-1.214.773-.822.23-2.1.38-3.286.38-1.186 0-2.464-.15-3.286-.38-.824-.233-1.088-.473-1.214-.773a.5.5 0 0 1 .491-.595"/>
+                        </svg>
+                    </button>
+                    <button id="summaryButton" title="សរុបការឈប់សម្រាកប្រចាំខែ" class="hidden text-gray-500 hover:text-green-600 p-2 rounded-full hover:bg-gray-100 transition">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1V2zm1 12h-2V2h2v12zm-3 0V7H7v7h2zm-4 0v-3H2v3h2z"/>
+                        </svg>
+                    </button>
                     <button id="refreshButton" title="ផ្ទុកទិន្នន័យឡើងវិញ" class="text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-gray-100 transition">
                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
                             <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
@@ -110,9 +126,6 @@
                     </button>
                 </div>
             </div>
-
-            <!-- Summary by Employee -->
-            <div id="monthlySummaryContainer" class="mb-6"></div>
             
             <!-- Loading indicator -->
             <div id="loader" class="text-center p-10 hidden">
@@ -153,7 +166,7 @@
     </div>
 
     <!-- Details Modal -->
-    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden items-center justify-center p-4">
+    <div id="modal-container" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
         <div id="modal-content" class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-full overflow-y-auto p-6 relative">
              <!-- Modal content will be injected by JS -->
         </div>
@@ -185,20 +198,22 @@
         const summaryText = document.getElementById('summaryText');
         const tabInfo = document.getElementById('tab-info');
         const tabLeave = document.getElementById('tab-leave');
+        const tabCombined = document.getElementById('tab-combined');
         const filterToggleButton = document.getElementById('filterToggleButton');
         const closeFilterButton = document.getElementById('closeFilterButton');
         const filterPanel = document.getElementById('filterPanel');
         const overlay = document.getElementById('overlay');
         const monthFilter = document.getElementById('monthFilter');
         const yearFilter = document.getElementById('yearFilter');
-        const monthlySummaryContainer = document.getElementById('monthlySummaryContainer');
         const modalContainer = document.getElementById('modal-container');
         const modalContent = document.getElementById('modal-content');
         const refreshButton = document.getElementById('refreshButton');
+        const summaryButton = document.getElementById('summaryButton');
+        const notReturnedButton = document.getElementById('notReturnedButton');
 
 
         // --- STATE ---
-        let allData = { info: [], leave: [] };
+        let allData = { info: [], leave: [], combined: [] };
         let profileData = {};
         let currentTab = 'info';
         let currentPage = 1;
@@ -248,21 +263,28 @@
         
         function parseInfoData(rows) {
             return rows.map(row => ({
+                type: 'info',
                 id: String(row[3] || ''), name: row[4] || '', gender: row[5] || '',
                 class: row[7] || '', dateOut: row[0] || '', timeOut: row[12] || '',
                 dateIn: row[14] || '', timeIn: row[13] || '', reason: row[9] || '',
                 duration: row[10] || '',
-            })).filter(item => item.id || item.name)
-               .sort((a, b) => parseDateForSort(b.dateOut) - parseDateForSort(a.dateOut));
+                sortDate: parseDateForSort(row[0])
+            })).filter(item => item.id || item.name);
         }
 
         function parseLeaveData(rows) {
             return rows.map(row => ({
+                type: 'leave',
                 id: String(row[1] || ''), name: row[2] || '', gender: row[3] || '',
                 class: row[5] || '', date: row[0] || '', reason: row[6] || '',
                 duration: row[7] || '',
-            })).filter(item => item.id || item.name)
-               .sort((a, b) => parseDateForSort(b.date) - parseDateForSort(a.date));
+                sortDate: parseDateForSort(row[0])
+            })).filter(item => item.id || item.name);
+        }
+
+        function combineAndSortData() {
+            const combined = [...allData.info, ...allData.leave];
+            allData.combined = combined.sort((a, b) => b.sortDate - a.sortDate);
         }
 
         function parseProfileData(rows) {
@@ -336,7 +358,7 @@
                     card.onclick = () => showModal(item, profile);
 
                     let contentHTML = '';
-                    if (currentTab === 'info') {
+                    if (item.type === 'info') {
                         contentHTML = `
                             <img src="${profile.photo || placeholderImg}" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-14 h-14 rounded-full object-cover border-2 border-blue-200 flex-shrink-0">
                             <div class="flex-grow">
@@ -376,7 +398,7 @@
                     dataContainer.appendChild(card);
                 });
             }
-            calculateAndDisplaySummary(filteredData);
+            handleSummaryDisplay(filteredData);
             renderPagination(filteredData.length);
         }
         
@@ -406,36 +428,27 @@
             render();
         }
 
-        function calculateAndDisplaySummary(data) {
-            monthlySummaryContainer.innerHTML = '';
-            if (currentTab !== 'leave' || data.length === 0) return;
-
-            const summary = data.reduce((acc, item) => {
-                if (!acc[item.id]) {
-                    acc[item.id] = { count: 0, days: 0, name: item.name, id: item.id };
-                }
-                acc[item.id].count++;
-                const durationStr = item.duration || '';
-                if (durationStr.includes('ព្រឹក') || durationStr.includes('រសៀល') || durationStr.includes('យប់')) {
-                    acc[item.id].days += 0.5;
-                } else {
-                    const days = parseFloat(durationStr);
-                    acc[item.id].days += isNaN(days) ? 1 : days; // Assume 1 day if not specified
-                }
-                return acc;
-            }, {});
-
-            const summaryArray = Object.values(summary).sort((a,b) => b.days - a.days);
-
-            const summaryButton = document.createElement('div');
-            summaryButton.className = 'text-center';
-            summaryButton.innerHTML = `
-                <button id="showSummaryButton" class="bg-green-600 text-white px-5 py-2 rounded-md hover:bg-green-700 transition w-full sm:w-auto">
-                    មើលសរុបការឈប់សម្រាកប្រចាំខែ
-                </button>
-            `;
-            monthlySummaryContainer.appendChild(summaryButton);
-            document.getElementById('showSummaryButton').onclick = () => showSummaryModal(summaryArray);
+        function handleSummaryDisplay(data) {
+            summaryButton.classList.toggle('hidden', currentTab !== 'leave' || data.length === 0);
+            
+            if (currentTab === 'leave' && data.length > 0) {
+                 const summary = data.reduce((acc, item) => {
+                    if (!acc[item.id]) {
+                        acc[item.id] = { count: 0, days: 0, name: item.name, id: item.id };
+                    }
+                    acc[item.id].count++;
+                    const durationStr = item.duration || '';
+                    if (durationStr.includes('ព្រឹក') || durationStr.includes('រសៀល') || durationStr.includes('យប់')) {
+                        acc[item.id].days += 0.5;
+                    } else {
+                        const days = parseFloat(durationStr);
+                        acc[item.id].days += isNaN(days) ? 1 : days;
+                    }
+                    return acc;
+                }, {});
+                const summaryArray = Object.values(summary).sort((a,b) => b.days - a.days);
+                summaryButton.onclick = () => showSummaryModal(summaryArray);
+            }
         }
 
         // --- UI & FILTERS ---
@@ -475,12 +488,54 @@
             currentTab = tabName;
             tabInfo.classList.toggle('tab-active', tabName === 'info');
             tabLeave.classList.toggle('tab-active', tabName === 'leave');
-            monthlySummaryContainer.innerHTML = ''; // Clear summary on tab switch
-            currentPage = 1; // Reset page on tab switch
+            tabCombined.classList.toggle('tab-active', tabName === 'combined');
+            notReturnedButton.classList.toggle('hidden', tabName !== 'info');
+            currentPage = 1;
             render();
         }
         
         // --- Modal ---
+        function showNotReturnedModal() {
+            const selectedYear = yearFilter.value;
+            const selectedMonth = monthFilter.value;
+
+            const notReturnedList = allData.info.filter(item => {
+                if (item.timeIn) return false;
+                const itemDate = parseDateForSort(item.dateOut);
+                return (itemDate.getFullYear() == selectedYear && (itemDate.getMonth() + 1) == selectedMonth);
+            });
+
+            let modalHTML = `
+                <button onclick="hideModal()" class="absolute top-2 right-3 text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
+                <div class="pt-4">
+                     <h2 class="font-bold text-xl mb-4 text-center">អ្នកមិនទាន់ចូលមកវិញ (${toKhmerNumber(notReturnedList.length)} នាក់)</h2>
+                     <div class="max-h-[70vh] overflow-y-auto space-y-3 pr-2">`;
+
+            if (notReturnedList.length === 0) {
+                modalHTML += `<p class="text-center text-gray-500 p-4">គ្មានបុគ្គលិកដែលមិនទាន់ចូលមកវិញក្នុងខែនេះទេ។</p>`;
+            } else {
+                notReturnedList.forEach(item => {
+                    const profile = profileData[item.id.trim()] || { photo: '', department: '' };
+                    const placeholderImg = `https://placehold.co/60x60/e2e8f0/64748b?text=${(item.name || '?').charAt(0)}`;
+                    modalHTML += `
+                        <div class="bg-orange-50 border-l-4 border-orange-400 p-3 rounded-md flex items-start gap-3">
+                            <img src="${profile.photo || placeholderImg}" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-12 h-12 rounded-full object-cover flex-shrink-0">
+                            <div class="flex-grow">
+                                <p class="font-bold text-orange-800">${item.name} (${toKhmerNumber(item.id)})</p>
+                                <p class="text-sm text-gray-600"><strong>ចេញថ្ងៃ:</strong> ${toKhmerNumber(item.dateOut)}</p>
+                                <p class="text-sm text-gray-600"><strong>ម៉ោង:</strong> ${toKhmerNumber(item.timeOut)}</p>
+                            </div>
+                        </div>`;
+                });
+            }
+
+            modalHTML += '</div></div>';
+
+            modalContent.innerHTML = modalHTML;
+            modalContainer.classList.remove('hidden');
+            modalContainer.classList.add('flex');
+        }
+
         function showSummaryModal(summaryArray) {
             let modalHTML = `
                 <button onclick="hideModal()" class="absolute top-2 right-3 text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
@@ -555,7 +610,7 @@
                     <div class="max-h-48 overflow-y-auto space-y-2 pr-2">`;
             
             allRecordsForPersonThisMonth.forEach(record => {
-                if (currentTab === 'info') {
+                if (record.type === 'info') {
                     modalHTML += `
                         <div class="bg-gray-50 p-2 rounded-md text-sm">
                             <p><strong>${toKhmerNumber(record.dateOut)}:</strong> ${toKhmerNumber(record.timeOut)} <strong>&rarr;</strong> ${toKhmerNumber(record.timeIn)}</p>
@@ -599,6 +654,7 @@
             if (infoRows) allData.info = parseInfoData(infoRows);
             if (leaveRows) allData.leave = parseLeaveData(leaveRows);
             
+            combineAndSortData();
             loader.classList.add('hidden');
             
             if(infoRows || leaveRows){
@@ -645,9 +701,10 @@
                 refreshButton.disabled = false;
             }, 500);
         });
-
+        notReturnedButton.addEventListener('click', showNotReturnedModal);
         tabInfo.addEventListener('click', () => switchTab('info'));
         tabLeave.addEventListener('click', () => switchTab('leave'));
+        tabCombined.addEventListener('click', () => switchTab('combined'));
         [searchInput, monthFilter, yearFilter].forEach(el => el.addEventListener('input', () => {
              currentPage = 1;
              render();
