@@ -19,12 +19,7 @@
         ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #555; }
         
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
+        .loader, .spinning {
             animation: spin 1s linear infinite;
         }
         @keyframes spin {
@@ -51,15 +46,16 @@
         }
 
         .card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         
-        #modal-content {
-            animation: slideUp 0.3s ease-out;
+        #modal-content, .card {
+            animation: slideUpFadeIn 0.5s ease-out forwards;
+            opacity: 0;
         }
 
-        @keyframes slideUp {
+        @keyframes slideUpFadeIn {
             from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
@@ -67,11 +63,11 @@
 </head>
 <body class="antialiased text-gray-800">
 
-    <div class="container mx-auto p-4 max-w-4xl">
+    <div class="container mx-auto px-2 sm:p-4 max-w-5xl">
         <header class="text-center mb-6">
             <img src="https://i.postimg.cc/tT0XCH38/di3-copy.png" alt="Logo ក្រុមហ៊ុន" class="mx-auto h-16 w-auto mb-4">
-            <h1 class="text-2xl md:text-3xl font-bold text-blue-600">ប្រព័ន្ធពិនិត្យរបាយការណ៍ច្បាប់</h1>
-            <p class="text-gray-500 mt-1">ទិន្នន័យច្បាប់ ឧស្សាហកម្មឌីជីថល</p>
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-blue-600">ប្រព័ន្ធពិនិត្យរបាយការណ៍ច្បាប់</h1>
+            <p class="text-gray-500 mt-1 text-sm sm:text-base">ទិន្នន័យច្បាប់ ឧស្សាហកម្មឌីជីថល</p>
         </header>
 
         <!-- API Key Input Section -->
@@ -99,12 +95,20 @@
             </div>
 
             <!-- Main Control Bar -->
-            <div class="bg-white p-3 rounded-lg shadow-md mb-6 flex justify-between items-center">
-                <div id="summaryText" class="text-gray-600 text-sm">សូមជ្រើសរើសប្រភេទច្បាប់...</div>
-                <button id="filterToggleButton" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-filter" viewBox="0 0 16 16"><path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/></svg>
-                    <span>តម្រង</span>
-                </button>
+            <div class="bg-white p-2 sm:p-3 rounded-lg shadow-md mb-6 flex justify-between items-center">
+                <div id="summaryText" class="text-gray-600 text-sm"></div>
+                <div class="flex items-center gap-2">
+                    <button id="refreshButton" title="ផ្ទុកទិន្នន័យឡើងវិញ" class="text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-gray-100 transition">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+                        </svg>
+                    </button>
+                    <button id="filterToggleButton" class="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/></svg>
+                        <span class="hidden sm:inline">តម្រង</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Summary by Employee -->
@@ -190,6 +194,7 @@
         const monthlySummaryContainer = document.getElementById('monthlySummaryContainer');
         const modalContainer = document.getElementById('modal-container');
         const modalContent = document.getElementById('modal-content');
+        const refreshButton = document.getElementById('refreshButton');
 
 
         // --- STATE ---
@@ -321,12 +326,13 @@
             if (filteredData.length === 0) {
                 dataContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow-md"><p class="text-gray-500">រកមិនឃើញទិន្នន័យសម្រាប់ខែនេះទេ។</p></div>`;
             } else {
-                paginatedData.forEach(item => {
+                paginatedData.forEach((item, index) => {
                     const trimmedId = item.id.trim();
                     const profile = profileData[trimmedId] || { photo: '', department: '' };
                     const placeholderImg = `https://placehold.co/60x60/e2e8f0/64748b?text=${(item.name || '?').charAt(0)}`;
                     const card = document.createElement('div');
-                    card.className = 'card bg-white p-4 rounded-lg shadow-md flex items-start gap-4 cursor-pointer transition-all duration-200';
+                    card.className = 'card bg-white p-3 sm:p-4 rounded-lg shadow-md flex items-start gap-3 sm:gap-4 cursor-pointer transition-all duration-200';
+                    card.style.animationDelay = `${index * 0.07}s`;
                     card.onclick = () => showModal(item, profile);
 
                     let contentHTML = '';
@@ -336,14 +342,14 @@
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <h3 class="font-bold text-lg text-blue-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id || 'N/A')})</h3>
+                                        <h3 class="font-bold text-base sm:text-lg text-blue-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id || 'N/A')})</h3>
                                         <p class="text-sm text-gray-500">${profile.department || item.class || 'គ្មានផ្នែក'}</p>
                                     </div>
-                                    <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${toKhmerNumber(item.duration || '')}</span>
+                                    <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full flex-shrink-0">${toKhmerNumber(item.duration || '')}</span>
                                 </div>
-                                <div class="mt-3 border-t pt-2">
-                                    <p class="text-gray-700 mb-2 truncate"><strong>មូលហេតុ៖</strong> ${item.reason || 'គ្មាន'}</p>
-                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                <div class="mt-2 sm:mt-3 border-t pt-2">
+                                    <p class="text-gray-700 mb-2 truncate text-sm"><strong>មូលហេតុ៖</strong> ${item.reason || 'គ្មាន'}</p>
+                                    <div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
                                         <p><strong>ចេញ៖</strong> ${toKhmerNumber(item.dateOut)} ${toKhmerNumber(item.timeOut || '')}</p>
                                         <p><strong>ចូល៖</strong> ${toKhmerNumber(item.dateIn)} ${toKhmerNumber(item.timeIn || '')}</p>
                                     </div>
@@ -355,13 +361,13 @@
                              <div class="flex-grow">
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <h3 class="font-bold text-lg text-green-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id || 'N/A')})</h3>
+                                        <h3 class="font-bold text-base sm:text-lg text-green-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id || 'N/A')})</h3>
                                         <p class="text-sm text-gray-500">${profile.department || item.class || 'គ្មានផ្នែក'}</p>
                                     </div>
-                                    <span class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">${toKhmerNumber(item.duration || '')}</span>
+                                    <span class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full flex-shrink-0">${toKhmerNumber(item.duration || '')}</span>
                                 </div>
-                                <div class="mt-3 border-t pt-2">
-                                    <p class="text-gray-700 mb-2 truncate"><strong>មូលហេតុ៖</strong> ${item.reason || 'គ្មាន'}</p>
+                                <div class="mt-2 sm:mt-3 border-t pt-2">
+                                    <p class="text-gray-700 mb-2 truncate text-sm"><strong>មូលហេតុ៖</strong> ${item.reason || 'គ្មាន'}</p>
                                     <p class="text-sm"><strong>កាលបរិច្ឆេទ៖</strong> ${toKhmerNumber(item.date)}</p>
                                 </div>
                             </div>`;
@@ -425,7 +431,7 @@
             summaryButton.className = 'text-center';
             summaryButton.innerHTML = `
                 <button id="showSummaryButton" class="bg-green-600 text-white px-5 py-2 rounded-md hover:bg-green-700 transition w-full sm:w-auto">
-                    ទិន្នន័យសរុបការឈប់សម្រាកប្រចាំខែ
+                    មើលសរុបការឈប់សម្រាកប្រចាំខែ
                 </button>
             `;
             monthlySummaryContainer.appendChild(summaryButton);
@@ -582,7 +588,7 @@
             loader.classList.remove('hidden');
             hideError();
             dataContainer.innerHTML = '';
-
+            
             const [infoRows, leaveRows, profileRows] = await Promise.all([
                 fetchSheetData(MAIN_SHEET_ID, RANGES.info),
                 fetchSheetData(MAIN_SHEET_ID, RANGES.leave),
@@ -629,6 +635,17 @@
         }
 
         // --- Event Listeners ---
+        refreshButton.addEventListener('click', async () => {
+            const icon = refreshButton.querySelector('svg');
+            icon.classList.add('spinning');
+            refreshButton.disabled = true;
+            await init();
+            setTimeout(() => {
+                icon.classList.remove('spinning');
+                refreshButton.disabled = false;
+            }, 500);
+        });
+
         tabInfo.addEventListener('click', () => switchTab('info'));
         tabLeave.addEventListener('click', () => switchTab('leave'));
         [searchInput, monthFilter, yearFilter].forEach(el => el.addEventListener('input', () => {
