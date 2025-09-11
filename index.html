@@ -66,8 +66,8 @@
 <body class="antialiased text-gray-800">
 
     <div class="container mx-auto px-2 sm:p-4 max-w-5xl">
-        <header class="text-center mb-6">
-            <img src="https://i.postimg.cc/tT0XCH38/di3-copy.png" alt="Logo ក្រុមហ៊ុន" class="mx-auto h-16 w-auto mb-4">
+        <header class="text-center mb-4">
+            <img src="https://i.postimg.cc/tT0XCH38/di3-copy.png" alt="Logo ក្រុមហ៊ុន" class="mx-auto h-16 w-auto mb-2">
             <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-blue-600">ប្រព័ន្ធពិនិត្យរបាយការណ៍ច្បាប់</h1>
             <p class="text-gray-500 mt-1 text-sm sm:text-base">ទិន្នន័យច្បាប់ ឧស្សាហកម្មឌីជីថល</p>
         </header>
@@ -103,6 +103,12 @@
             <div class="bg-white p-2 sm:p-3 rounded-lg shadow-md mb-6 flex justify-between items-center">
                 <div id="summaryText" class="text-gray-600 text-sm"></div>
                 <div class="flex items-center gap-2">
+                     <button id="todayButton" title="ទិន្នន័យថ្ងៃនេះ" class="hidden text-gray-500 hover:text-indigo-600 p-2 rounded-full hover:bg-gray-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-calendar-check" viewBox="0 0 16 16">
+                            <path d="M10.854 7.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 9.793l2.646-2.647a.5.5 0 0 1 .708 0z"/>
+                            <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
+                        </svg>
+                    </button>
                     <button id="notReturnedButton" title="អ្នកមិនទាន់ចូលមកវិញ" class="hidden text-gray-500 hover:text-orange-600 p-2 rounded-full hover:bg-gray-100 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-person-exclamation" viewBox="0 0 16 16">
                             <path d="M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/>
@@ -137,6 +143,11 @@
             <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
                 <strong class="font-bold">មានបញ្ហា!</strong>
                 <span class="block sm:inline" id="errorText"></span>
+                 <div class="mt-2 text-center">
+                    <button id="changeApiKeyButton" class="hidden bg-blue-500 text-white text-sm font-bold py-1 px-3 rounded hover:bg-blue-700">
+                        ផ្លាស់ប្ដូរ API Key
+                    </button>
+                </div>
             </div>
 
             <!-- Data Display -->
@@ -210,6 +221,8 @@
         const refreshButton = document.getElementById('refreshButton');
         const summaryButton = document.getElementById('summaryButton');
         const notReturnedButton = document.getElementById('notReturnedButton');
+        const todayButton = document.getElementById('todayButton');
+        const changeApiKeyButton = document.getElementById('changeApiKeyButton');
 
 
         // --- STATE ---
@@ -218,24 +231,45 @@
         let currentTab = 'info';
         let currentPage = 1;
         const cardsPerPage = 4;
+        let filterDate = null;
 
 
         // --- UTILITY FUNCTIONS ---
         const toKhmerNumber = (num) => {
-            if (num === null || num === undefined || num === '') return '';
+            if (num === null || num === undefined || num === '') return 'N/A';
             const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
             return String(num).replace(/[0-9]/g, (digit) => khmerDigits[parseInt(digit)]);
         };
 
+        const toEnglishNumber = (numStr) => {
+            if (numStr === null || numStr === undefined) return '';
+            const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
+            let result = String(numStr);
+            khmerDigits.forEach((digit, index) => {
+                result = result.replace(new RegExp(digit, "g"), index);
+            });
+            return result;
+        };
+
         const parseDateForSort = (dateStr) => {
             if (!dateStr || typeof dateStr !== 'string') return new Date(0);
-            const parts = dateStr.split('/');
-            if (parts.length === 3) {
-                // DD/MM/YYYY -> YYYY-MM-DD
-                return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            
+            const englishDateStr = toEnglishNumber(dateStr);
+
+            const parsed = new Date(englishDateStr);
+            if (!isNaN(parsed.getTime())) {
+                return parsed;
             }
-            const parsed = new Date(dateStr);
-            return isNaN(parsed) ? new Date(0) : parsed;
+
+            const parts = englishDateStr.split('/');
+            if (parts.length === 3) {
+                const date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                 if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            }
+            
+            return new Date(0);
         };
         
         // --- API & DATA HANDLING ---
@@ -262,24 +296,24 @@
         }
         
         function parseInfoData(rows) {
-            return rows.map(row => ({
+            return rows.slice().reverse().map(row => ({
                 type: 'info',
                 id: String(row[3] || ''), name: row[4] || '', gender: row[5] || '',
                 class: row[7] || '', dateOut: row[0] || '', timeOut: row[12] || '',
                 dateIn: row[14] || '', timeIn: row[13] || '', reason: row[9] || '',
                 duration: row[10] || '',
                 sortDate: parseDateForSort(row[0])
-            })).filter(item => item.id || item.name);
+            })).filter(item => item.name);
         }
 
         function parseLeaveData(rows) {
-            return rows.map(row => ({
+            return rows.slice().reverse().map(row => ({
                 type: 'leave',
                 id: String(row[1] || ''), name: row[2] || '', gender: row[3] || '',
                 class: row[5] || '', date: row[0] || '', reason: row[6] || '',
                 duration: row[7] || '',
                 sortDate: parseDateForSort(row[0])
-            })).filter(item => item.id || item.name);
+            })).filter(item => item.name);
         }
 
         function combineAndSortData() {
@@ -312,10 +346,22 @@
 
         // --- RENDERING ---
         function showError(message) {
-            errorText.textContent = message;
+            let displayMessage = message;
+            let showChangeKeyButton = false;
+
+            if (message.includes("API key not valid")) {
+                displayMessage = "API Key មិនត្រឹមត្រូវទេ។ សូមពិនិត្យ API Key របស់អ្នក រួចព្យាយាមម្តងទៀត។";
+                showChangeKeyButton = true;
+            } else if (message.includes("not found")) {
+                displayMessage = "រកមិនឃើញ Sheet ដែលបានកំណត់ទេ។ សូមពិនិត្យឈ្មោះ Sheet ឡើងវិញ។";
+            }
+            
+            errorText.textContent = displayMessage;
             errorMessage.classList.remove('hidden');
             loader.classList.add('hidden');
+            changeApiKeyButton.classList.toggle('hidden', !showChangeKeyButton);
         }
+
 
         function hideError() { errorMessage.classList.add('hidden'); }
         
@@ -332,13 +378,28 @@
                 const searchMatch = (item.id.toLowerCase().includes(searchTerm) || item.name.toLowerCase().includes(searchTerm));
                 
                 const itemDateStr = item.dateOut || item.date;
+                if (!itemDateStr) return false;
                 const itemDate = parseDateForSort(itemDateStr);
-                const dateMatch = (itemDate.getFullYear() == selectedYear && (itemDate.getMonth() + 1) == selectedMonth);
+                
+                let dateMatch;
+                if (filterDate) {
+                    const itemDateFormatted = `${itemDate.getFullYear()}-${String(itemDate.getMonth() + 1).padStart(2, '0')}-${String(itemDate.getDate()).padStart(2, '0')}`;
+                    dateMatch = (itemDateFormatted === filterDate);
+                } else {
+                    dateMatch = (itemDate.getFullYear() == selectedYear && (itemDate.getMonth() + 1) == selectedMonth);
+                }
 
                 return searchMatch && dateMatch;
             });
 
-            // Pagination logic
+            if (currentTab === 'combined') {
+                renderCombinedView(filteredData);
+            } else {
+                renderStandardView(filteredData);
+            }
+        }
+
+        function renderStandardView(filteredData) {
             const startIndex = (currentPage - 1) * cardsPerPage;
             const endIndex = startIndex + cardsPerPage;
             const paginatedData = filteredData.slice(startIndex, endIndex);
@@ -346,9 +407,9 @@
             summaryText.textContent = `បង្ហាញ ${toKhmerNumber(paginatedData.length)} នៃ ${toKhmerNumber(filteredData.length)} លទ្ធផល`;
 
             if (filteredData.length === 0) {
-                dataContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow-md"><p class="text-gray-500">រកមិនឃើញទិន្នន័យសម្រាប់ខែនេះទេ។</p></div>`;
+                 dataContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow-md"><p class="text-gray-500">រកមិនឃើញទិន្នន័យទេ។</p></div>`;
             } else {
-                paginatedData.forEach((item, index) => {
+                 paginatedData.forEach((item, index) => {
                     const trimmedId = item.id.trim();
                     const profile = profileData[trimmedId] || { photo: '', department: '' };
                     const placeholderImg = `https://placehold.co/60x60/e2e8f0/64748b?text=${(item.name || '?').charAt(0)}`;
@@ -364,16 +425,16 @@
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <h3 class="font-bold text-base sm:text-lg text-blue-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id || 'N/A')})</h3>
+                                        <h3 class="font-bold text-base sm:text-lg text-blue-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id)})</h3>
                                         <p class="text-sm text-gray-500">${profile.department || item.class || 'គ្មានផ្នែក'}</p>
                                     </div>
-                                    <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full flex-shrink-0">${toKhmerNumber(item.duration || '')}</span>
+                                    <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full flex-shrink-0">${toKhmerNumber(item.duration)}</span>
                                 </div>
                                 <div class="mt-2 sm:mt-3 border-t pt-2">
                                     <p class="text-gray-700 mb-2 truncate text-sm"><strong>មូលហេតុ៖</strong> ${item.reason || 'គ្មាន'}</p>
                                     <div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
-                                        <p><strong>ចេញ៖</strong> ${toKhmerNumber(item.dateOut)} ${toKhmerNumber(item.timeOut || '')}</p>
-                                        <p><strong>ចូល៖</strong> ${toKhmerNumber(item.dateIn)} ${toKhmerNumber(item.timeIn || '')}</p>
+                                        <p><strong>ចេញ៖</strong> ${toKhmerNumber(item.dateOut)} ${toKhmerNumber(item.timeOut)}</p>
+                                        <p><strong>ចូល៖</strong> ${toKhmerNumber(item.dateIn)} ${toKhmerNumber(item.timeIn)}</p>
                                     </div>
                                 </div>
                             </div>`;
@@ -383,10 +444,10 @@
                              <div class="flex-grow">
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <h3 class="font-bold text-base sm:text-lg text-green-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id || 'N/A')})</h3>
+                                        <h3 class="font-bold text-base sm:text-lg text-green-700">${item.name || 'គ្មានឈ្មោះ'} (${toKhmerNumber(item.id)})</h3>
                                         <p class="text-sm text-gray-500">${profile.department || item.class || 'គ្មានផ្នែក'}</p>
                                     </div>
-                                    <span class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full flex-shrink-0">${toKhmerNumber(item.duration || '')}</span>
+                                    <span class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full flex-shrink-0">${toKhmerNumber(item.duration)}</span>
                                 </div>
                                 <div class="mt-2 sm:mt-3 border-t pt-2">
                                     <p class="text-gray-700 mb-2 truncate text-sm"><strong>មូលហេតុ៖</strong> ${item.reason || 'គ្មាន'}</p>
@@ -400,6 +461,61 @@
             }
             handleSummaryDisplay(filteredData);
             renderPagination(filteredData.length);
+        }
+
+        function renderCombinedView(filteredData) {
+            const employeeSummary = filteredData.reduce((acc, item) => {
+                if (!acc[item.id]) {
+                    acc[item.id] = {
+                        id: item.id,
+                        name: item.name,
+                        profile: profileData[item.id.trim()] || { photo: '', department: '' },
+                        infoCount: 0,
+                        leaveCount: 0,
+                    };
+                }
+                if (item.type === 'info') acc[item.id].infoCount++;
+                else if (item.type === 'leave') acc[item.id].leaveCount++;
+                return acc;
+            }, {});
+
+            const summaryArray = Object.values(employeeSummary);
+            summaryText.textContent = `បង្ហាញ ${toKhmerNumber(summaryArray.length)} នាក់`;
+
+            const startIndex = (currentPage - 1) * cardsPerPage;
+            const endIndex = startIndex + cardsPerPage;
+            const paginatedData = summaryArray.slice(startIndex, endIndex);
+
+            if (summaryArray.length === 0) {
+                dataContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow-md"><p class="text-gray-500">រកមិនឃើញទិន្នន័យសម្រាប់ខែនេះទេ។</p></div>`;
+            } else {
+                paginatedData.forEach((summary, index) => {
+                    const placeholderImg = `https://placehold.co/60x60/e2e8f0/64748b?text=${(summary.name || '?').charAt(0)}`;
+                    const card = document.createElement('div');
+                    card.className = 'card bg-white p-3 rounded-lg shadow-md flex items-center gap-4 cursor-pointer transition-all duration-200';
+                    card.style.animationDelay = `${index * 0.07}s`;
+                    
+                    const originalItem = filteredData.find(i => i.id === summary.id);
+                    card.onclick = () => showModal(originalItem, summary.profile);
+
+                    card.innerHTML = `
+                        <img src="${summary.profile.photo || placeholderImg}" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-14 h-14 rounded-full object-cover flex-shrink-0">
+                        <div class="flex-grow">
+                            <h3 class="font-bold text-base sm:text-lg text-gray-800">${summary.name || 'គ្មានឈ្មោះ'}</h3>
+                            <p class="text-sm text-gray-500">${summary.profile.department || 'គ្មានផ្នែក'}</p>
+                            <p class="text-xs text-gray-400">${toKhmerNumber(summary.id)}</p>
+                        </div>
+                        <div class="text-right flex-shrink-0 space-y-1">
+                            <div class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">ចេញក្រៅ: ${toKhmerNumber(summary.infoCount)} ដង</div>
+                            <div class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">ឈប់សម្រាក: ${toKhmerNumber(summary.leaveCount)} ដង</div>
+                        </div>
+                    `;
+                    dataContainer.appendChild(card);
+                });
+            }
+
+            handleSummaryDisplay(filteredData);
+            renderPagination(summaryArray.length);
         }
         
         function renderPagination(totalItems) {
@@ -490,6 +606,8 @@
             tabLeave.classList.toggle('tab-active', tabName === 'leave');
             tabCombined.classList.toggle('tab-active', tabName === 'combined');
             notReturnedButton.classList.toggle('hidden', tabName !== 'info');
+            todayButton.classList.toggle('hidden', tabName === 'combined');
+            filterDate = null;
             currentPage = 1;
             render();
         }
@@ -500,7 +618,7 @@
             const selectedMonth = monthFilter.value;
 
             const notReturnedList = allData.info.filter(item => {
-                if (item.timeIn) return false;
+                if (item.timeIn && item.timeIn.trim() !== '') return false;
                 const itemDate = parseDateForSort(item.dateOut);
                 return (itemDate.getFullYear() == selectedYear && (itemDate.getMonth() + 1) == selectedMonth);
             });
@@ -569,20 +687,21 @@
 
         function showModal(item, profile) {
             const personId = item.id;
-            const dataToRender = allData[currentTab];
             const selectedYear = yearFilter.value;
             const selectedMonth = monthFilter.value;
 
-            const allRecordsForPersonThisMonth = dataToRender.filter(record => {
+            const allRecordsForPersonThisMonth = allData.combined.filter(record => {
                 if (record.id !== personId) return false;
                 const itemDateStr = record.dateOut || record.date;
                 const itemDate = parseDateForSort(itemDateStr);
                 return (itemDate.getFullYear() == selectedYear && (itemDate.getMonth() + 1) == selectedMonth);
             });
 
-            let totalCount = allRecordsForPersonThisMonth.length;
+            const leaveRecords = allRecordsForPersonThisMonth.filter(r => r.type === 'leave');
+            const infoRecords = allRecordsForPersonThisMonth.filter(r => r.type === 'info');
+
             let totalDays = 0;
-            allRecordsForPersonThisMonth.forEach(record => {
+            leaveRecords.forEach(record => {
                 const durationStr = record.duration || '';
                 if (durationStr.includes('ព្រឹក') || durationStr.includes('រសៀល') || durationStr.includes('យប់')) {
                     totalDays += 0.5;
@@ -601,33 +720,43 @@
                      <p class="text-gray-500">${profile.department || item.class}</p>
                 </div>
                 
-                <div class="mt-4 bg-gray-100 p-2 rounded-lg text-center">
-                    <p class="font-bold">សរុបក្នុងខែនេះ: <span class="text-blue-600">${toKhmerNumber(totalCount)} ដង</span> (ស្មើនឹង <span class="text-blue-600">${toKhmerNumber(totalDays)} ថ្ងៃ</span>)</p>
+                <div class="mt-4 grid grid-cols-2 gap-2 text-center">
+                    <div class="bg-green-50 p-2 rounded-lg">
+                        <p class="font-bold text-lg text-green-700">${toKhmerNumber(leaveRecords.length)} ដង</p>
+                        <p class="text-xs text-gray-500">ឈប់សម្រាក (${toKhmerNumber(totalDays)} ថ្ងៃ)</p>
+                    </div>
+                    <div class="bg-blue-50 p-2 rounded-lg">
+                        <p class="font-bold text-lg text-blue-700">${toKhmerNumber(infoRecords.length)} ដង</p>
+                        <p class="text-xs text-gray-500">ចេញក្រៅ</p>
+                    </div>
                 </div>
 
-                <div class="mt-4 border-t pt-2">
-                    <strong class="block mb-2">ប្រវត្តិសុំច្បាប់ក្នុងខែនេះ:</strong>
-                    <div class="max-h-48 overflow-y-auto space-y-2 pr-2">`;
+                <div class="mt-4 max-h-60 overflow-y-auto space-y-3 pr-2">`;
             
-            allRecordsForPersonThisMonth.forEach(record => {
-                if (record.type === 'info') {
-                    modalHTML += `
-                        <div class="bg-gray-50 p-2 rounded-md text-sm">
-                            <p><strong>${toKhmerNumber(record.dateOut)}:</strong> ${toKhmerNumber(record.timeOut)} <strong>&rarr;</strong> ${toKhmerNumber(record.timeIn)}</p>
-                            <p class="text-xs text-gray-600 truncate">មូលហេតុ: ${record.reason || 'N/A'}</p>
-                        </div>
-                    `;
-                } else { // leave
-                    modalHTML += `
-                        <div class="bg-gray-50 p-2 rounded-md text-sm">
+            if (leaveRecords.length > 0) {
+                 modalHTML += `<h3 class="font-bold text-gray-700 mt-2">ប្រវត្តិការឈប់សម្រាក</h3>`;
+                 leaveRecords.forEach(record => {
+                     modalHTML += `
+                        <div class="bg-green-50 border-l-4 border-green-400 p-2 rounded-md text-sm">
                             <p><strong>${toKhmerNumber(record.date)}:</strong> ${record.duration}</p>
                             <p class="text-xs text-gray-600 truncate">មូលហេតុ: ${record.reason || 'N/A'}</p>
-                        </div>
-                    `;
-                }
-            });
+                        </div>`;
+                 });
+            }
 
-            modalHTML += `</div></div>`;
+            if (infoRecords.length > 0) {
+                 modalHTML += `<h3 class="font-bold text-gray-700 mt-4">ប្រវត្តិការចេញក្រៅ</h3>`;
+                 infoRecords.forEach(record => {
+                    modalHTML += `
+                        <div class="bg-blue-50 border-l-4 border-blue-400 p-2 rounded-md text-sm">
+                            <p><strong>${toKhmerNumber(record.dateOut)}:</strong> ${toKhmerNumber(record.timeOut)} <strong>&rarr;</strong> ${toKhmerNumber(record.timeIn)}</p>
+                            <p class="text-xs text-gray-600 truncate">មូលហេតុ: ${record.reason || 'N/A'}</p>
+                        </div>`;
+                 });
+            }
+
+
+            modalHTML += `</div>`;
             
             modalContent.innerHTML = modalHTML;
             modalContainer.classList.remove('hidden');
@@ -675,6 +804,16 @@
                 alert('សូមបញ្ចូល API Key ដែលត្រឹមត្រូវ');
             }
         });
+        
+        changeApiKeyButton.addEventListener('click', () => {
+            localStorage.removeItem('googleApiKey');
+            GOOGLE_API_KEY = '';
+            
+            mainContent.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+            apiKeySection.classList.remove('hidden');
+            apiKeyInput.value = '';
+        });
 
         function checkApiKey() {
             populateDateFilters();
@@ -701,11 +840,22 @@
                 refreshButton.disabled = false;
             }, 500);
         });
+
+        todayButton.addEventListener('click', () => {
+            const now = new Date();
+            filterDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            yearFilter.value = now.getFullYear();
+            monthFilter.value = now.getMonth() + 1;
+            currentPage = 1;
+            render();
+        });
+
         notReturnedButton.addEventListener('click', showNotReturnedModal);
         tabInfo.addEventListener('click', () => switchTab('info'));
         tabLeave.addEventListener('click', () => switchTab('leave'));
         tabCombined.addEventListener('click', () => switchTab('combined'));
         [searchInput, monthFilter, yearFilter].forEach(el => el.addEventListener('input', () => {
+             filterDate = null;
              currentPage = 1;
              render();
         }));
