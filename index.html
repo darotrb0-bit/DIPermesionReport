@@ -192,7 +192,7 @@
 
         const RANGES = {
             info: "'INFO'!A8:O",
-            leave: "'ច្បាប់សម្រាក'!A2:H",
+            leave: "'ច្បាប់សម្រាក'!A2:K",
             profiles: "'បញ្ជឺឈ្មោះរួម'!E9:S" 
         };
 
@@ -230,8 +230,10 @@
         let profileData = {};
         let currentTab = 'info';
         let currentPage = 1;
-        const cardsPerPage = 4;
+        let cardsPerPage = 4;
         let filterDate = null;
+        let touchStartX = 0;
+        let touchEndX = 0;
 
 
         // --- UTILITY FUNCTIONS ---
@@ -312,6 +314,7 @@
                 id: String(row[1] || ''), name: row[2] || '', gender: row[3] || '',
                 class: row[5] || '', date: row[0] || '', reason: row[6] || '',
                 duration: row[7] || '',
+                dateEnd: row[10] || '',
                 sortDate: parseDateForSort(row[0])
             })).filter(item => item.name);
         }
@@ -365,16 +368,13 @@
 
         function hideError() { errorMessage.classList.add('hidden'); }
         
-        function render() {
-            hideError();
-            dataContainer.innerHTML = '';
-            const dataToRender = allData[currentTab];
-            
+        function getFilteredData() {
+            const dataToFilter = allData[currentTab] || [];
             const searchTerm = searchInput.value.toLowerCase();
             const selectedYear = yearFilter.value;
             const selectedMonth = monthFilter.value;
 
-            const filteredData = dataToRender.filter(item => {
+            return dataToFilter.filter(item => {
                 const searchMatch = (item.id.toLowerCase().includes(searchTerm) || item.name.toLowerCase().includes(searchTerm));
                 
                 const itemDateStr = item.dateOut || item.date;
@@ -391,6 +391,12 @@
 
                 return searchMatch && dateMatch;
             });
+        }
+        
+        function render() {
+            hideError();
+            dataContainer.innerHTML = '';
+            const filteredData = getFilteredData();
 
             if (currentTab === 'combined') {
                 renderCombinedView(filteredData);
@@ -451,7 +457,19 @@
                                 </div>
                                 <div class="mt-2 sm:mt-3 border-t pt-2">
                                     <p class="text-gray-700 mb-2 truncate text-sm"><strong>មូលហេតុ៖</strong> ${item.reason || 'គ្មាន'}</p>
-                                    <p class="text-sm"><strong>កាលបរិច្ឆេទ៖</strong> ${toKhmerNumber(item.date)}</p>
+                                    ${(() => {
+                                        const singleDayKeywords = ['មួយព្រឹក', 'មួយរសៀល', 'ពេលយប់', 'មួយថ្ងៃ'];
+                                        const isSingleDay = !item.duration || singleDayKeywords.some(keyword => (item.duration || '').includes(keyword));
+
+                                        if (isSingleDay || !item.dateEnd || item.dateEnd.trim() === '') {
+                                            return `<p class="text-sm"><strong>កាលបរិច្ឆេទ៖</strong> ${toKhmerNumber(item.date)}</p>`;
+                                        } else {
+                                            return `<div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+                                                        <p><strong>ពីថ្ងៃ:</strong> ${toKhmerNumber(item.date)}</p>
+                                                        <p><strong>ដល់ថ្ងៃ:</strong> ${toKhmerNumber(item.dateEnd)}</p>
+                                                    </div>`;
+                                        }
+                                    })()}
                                 </div>
                             </div>`;
                     }
@@ -738,7 +756,15 @@
                  leaveRecords.forEach(record => {
                      modalHTML += `
                         <div class="bg-green-50 border-l-4 border-green-400 p-2 rounded-md text-sm">
-                            <p><strong>${toKhmerNumber(record.date)}:</strong> ${record.duration}</p>
+                            ${(() => {
+                                const singleDayKeywords = ['មួយព្រឹក', 'មួយរសៀល', 'ពេលយប់', 'មួយថ្ងៃ'];
+                                const isSingleDay = !record.duration || singleDayKeywords.some(keyword => (record.duration || '').includes(keyword));
+                                if (isSingleDay || !record.dateEnd || record.dateEnd.trim() === '') {
+                                    return `<p><strong>${toKhmerNumber(record.date)}:</strong> ${record.duration}</p>`;
+                                } else {
+                                    return `<p><strong>ពី ${toKhmerNumber(record.date)} ដល់ ${toKhmerNumber(record.dateEnd)}</strong> (${record.duration})</p>`;
+                                }
+                            })()}
                             <p class="text-xs text-gray-600 truncate">មូលហេតុ: ${record.reason || 'N/A'}</p>
                         </div>`;
                  });
@@ -870,9 +896,50 @@
             if (e.target === modalContainer) hideModal();
         });
 
+        function updateCardsPerPage() {
+            if (window.innerWidth >= 768) { 
+                cardsPerPage = 8;
+            } else {
+                cardsPerPage = 4;
+            }
+        }
+
+        function handleSwipeGesture() {
+            const swipeThreshold = 50; 
+            const filteredData = getFilteredData();
+            const totalPages = Math.ceil(filteredData.length / cardsPerPage);
+
+            if (touchEndX < touchStartX - swipeThreshold) { 
+                if (currentPage < totalPages) {
+                    changePage(currentPage + 1);
+                }
+            }
+            if (touchEndX > touchStartX + swipeThreshold) { 
+                if (currentPage > 1) {
+                    changePage(currentPage - 1);
+                }
+            }
+        }
 
         // --- Start the App ---
-        document.addEventListener('DOMContentLoaded', checkApiKey);
+        document.addEventListener('DOMContentLoaded', () => {
+            checkApiKey();
+            updateCardsPerPage();
+        });
+
+        window.addEventListener('resize', () => {
+            updateCardsPerPage();
+            render(); 
+        });
+
+        dataContainer.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        dataContainer.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipeGesture();
+        });
     </script>
 </body>
 </html>
